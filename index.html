@@ -1,0 +1,1075 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>DrowseGuard</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet"/>
+<style>
+/* ─── Design tokens ──────────────────────────────────────────── */
+:root{
+  --bg:     #0d1117;
+  --surf:   #161b22;
+  --surf2:  #1c2330;
+  --border: #30363d;
+  --border2:#21262d;
+  --text:   #e6edf3;
+  --muted:  #7d8590;
+  --safe:   #3fb950;
+  --warn:   #d29922;
+  --danger: #f85149;
+  --brand:  #58a6ff;
+  --brand2: #1f6feb;
+  --radius: 8px;
+  --font-mono: 'SF Mono','Fira Code',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;min-height:100vh}
+
+/* ─── Topbar ─────────────────────────────────────────────────── */
+#topbar{
+  position:sticky;top:0;z-index:200;
+  height:52px;
+  background:#0d1117ee;
+  backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--border2);
+  display:flex;align-items:center;padding:0 20px;gap:0;
+}
+.brand{font-size:15px;font-weight:700;color:var(--brand);letter-spacing:-.3px;margin-right:32px;display:flex;align-items:center;gap:7px}
+.brand-dot{width:7px;height:7px;border-radius:50%;background:var(--safe);box-shadow:0 0 6px var(--safe)}
+.brand-dot.warn  {background:var(--warn);box-shadow:0 0 6px var(--warn)}
+.brand-dot.danger{background:var(--danger);box-shadow:0 0 6px var(--danger)}
+.nav-pill{height:52px;padding:0 14px;display:flex;align-items:center;gap:6px;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:color .15s,border-color .15s;user-select:none}
+.nav-pill:hover{color:var(--text)}
+.nav-pill.active{color:var(--brand);border-bottom-color:var(--brand)}
+.nav-pill i{font-size:15px}
+.session-chip{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
+.session-chip .pulse{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.session-chip .pulse.on{background:var(--safe);box-shadow:0 0 5px var(--safe);animation:pulse 1.8s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* ─── Pages ──────────────────────────────────────────────────── */
+.page{display:none;padding:20px}
+.page.active{display:block}
+
+/* ─── Cards ──────────────────────────────────────────────────── */
+.card{background:var(--surf);border:1px solid var(--border2);border-radius:var(--radius);overflow:hidden}
+.card-hd{padding:10px 14px;border-bottom:1px solid var(--border2);font-size:11px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:6px}
+.card-bd{padding:14px}
+
+/* ─── Camera ─────────────────────────────────────────────────── */
+.cam-wrap{position:relative;background:#000;border-radius:var(--radius);overflow:hidden;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center}
+#video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:block}
+.cam-placeholder{text-align:center;color:var(--muted);padding:24px}
+.cam-placeholder i{font-size:40px;display:block;margin-bottom:8px;opacity:.4}
+#alertBanner{position:absolute;bottom:0;left:0;right:0;padding:10px 16px;font-weight:700;font-size:13px;text-align:center;display:none;backdrop-filter:blur(6px)}
+
+/* ─── Metrics ────────────────────────────────────────────────── */
+.metric{margin-bottom:12px}
+.metric:last-child{margin-bottom:0}
+.metric-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px}
+.metric-lbl{font-size:11px;color:var(--muted);font-family:var(--font-mono)}
+.metric-val{font-size:13px;font-weight:700;font-family:var(--font-mono);color:var(--text)}
+.bar{height:4px;background:var(--border);border-radius:2px;overflow:hidden}
+.bar-fill{height:100%;border-radius:2px;background:var(--safe);transition:width .25s,background .25s}
+
+/* ─── Signal rows ─────────────────────────────────────────────── */
+.sig{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-radius:6px;border:1px solid var(--border2);margin-bottom:6px;transition:border-color .2s,background .2s}
+.sig:last-child{margin-bottom:0}
+.sig.is-warn  {border-color:var(--warn);  background:rgba(210,153,34,.07)}
+.sig.is-danger{border-color:var(--danger);background:rgba(248,81,73,.07)}
+.sig-led{width:8px;height:8px;border-radius:50%;background:var(--border);margin-right:8px;flex-shrink:0;transition:background .2s,box-shadow .2s}
+.sig-led.is-warn  {background:var(--warn);  box-shadow:0 0 5px var(--warn)}
+.sig-led.is-danger{background:var(--danger);box-shadow:0 0 5px var(--danger)}
+.sig-label{font-size:13px}
+.sig-badge{font-size:10px;font-weight:700;letter-spacing:.5px;padding:2px 7px;border-radius:4px;background:var(--border2);color:var(--muted)}
+.sig-badge.is-warn  {background:rgba(210,153,34,.2); color:var(--warn)}
+.sig-badge.is-danger{background:rgba(248,81,73,.2);  color:var(--danger)}
+
+/* ─── Stat tiles ─────────────────────────────────────────────── */
+.stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat-tile{background:var(--surf2);border:1px solid var(--border2);border-radius:6px;padding:10px;text-align:center}
+.stat-n{font-size:22px;font-weight:800;line-height:1;font-family:var(--font-mono)}
+.stat-l{font-size:10px;color:var(--muted);margin-top:3px;text-transform:uppercase;letter-spacing:.5px}
+
+/* ─── Live feed ──────────────────────────────────────────────── */
+.feed{height:148px;overflow-y:auto;padding:6px;font-family:var(--font-mono);font-size:11px}
+.feed::-webkit-scrollbar{width:4px}
+.feed::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.feed-line{padding:2px 0;border-bottom:1px solid rgba(255,255,255,.03)}
+.feed-line.warn  {color:var(--warn)}
+.feed-line.danger{color:var(--danger)}
+.feed-line.info  {color:var(--muted)}
+
+/* ─── Driver selector strip ──────────────────────────────────── */
+.driver-strip{background:var(--surf);border:1px solid var(--border2);border-radius:var(--radius);padding:10px 14px;display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.avatar{flex-shrink:0;border-radius:6px;overflow:hidden;background:var(--brand2);display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:13px}
+.avatar img{width:100%;height:100%;object-fit:cover}
+.driver-name{font-weight:600;font-size:14px}
+.driver-sub{font-size:11px;color:var(--muted);margin-top:1px}
+.strip-btn{margin-left:auto;font-size:11px;padding:5px 10px;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--text);cursor:pointer;white-space:nowrap}
+.strip-btn:hover{border-color:var(--brand);color:var(--brand)}
+
+/* ─── Page 2 ─────────────────────────────────────────────────── */
+.driver-profile-card{display:flex;gap:16px;align-items:flex-start}
+.avatar-xl{width:80px;height:80px;border-radius:10px;flex-shrink:0}
+.info-dl{flex:1}
+.info-dl dt{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:8px}
+.info-dl dt:first-child{margin-top:0}
+.info-dl dd{font-size:13px;color:var(--text);margin-left:0}
+.tl-wrap{height:calc(100vh - 200px);overflow-y:auto;padding-right:4px}
+.tl-wrap::-webkit-scrollbar{width:4px}
+.tl-wrap::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.tl{position:relative;padding-left:20px}
+.tl::before{content:'';position:absolute;left:5px;top:0;bottom:0;width:1px;background:var(--border2)}
+.tl-item{position:relative;margin-bottom:14px}
+.tl-dot{position:absolute;left:-20px;top:5px;width:10px;height:10px;border-radius:50%;border:2px solid var(--bg)}
+.tl-dot.warn  {background:var(--warn)}
+.tl-dot.danger{background:var(--danger)}
+.tl-ts{font-size:10px;color:var(--muted);font-family:var(--font-mono)}
+.tl-msg{font-size:13px;margin:2px 0}
+.tl-meta{font-size:10px;color:var(--muted);font-family:var(--font-mono)}
+.badge-warn  {background:rgba(210,153,34,.15);color:var(--warn);  border-radius:4px;padding:2px 6px;font-size:10px;font-weight:700}
+.badge-danger{background:rgba(248,81,73,.15); color:var(--danger);border-radius:4px;padding:2px 6px;font-size:10px;font-weight:700}
+.badge-brand {background:rgba(88,166,255,.12);color:var(--brand); border-radius:4px;padding:2px 6px;font-size:10px;font-weight:700}
+
+/* ─── Page 3 ─────────────────────────────────────────────────── */
+.p3-top{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.p3-top h2{font-size:16px;font-weight:700}
+.p3-count{font-size:11px;color:var(--muted);background:var(--surf2);border:1px solid var(--border2);border-radius:12px;padding:2px 8px}
+.search-box{margin-left:auto;background:var(--surf2);border:1px solid var(--border2);border-radius:6px;padding:6px 10px;color:var(--text);font-size:13px;width:180px;outline:none}
+.search-box:focus{border-color:var(--brand)}
+.btn-add{background:var(--brand2);border:none;color:#fff;font-size:13px;font-weight:600;padding:7px 14px;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:5px;white-space:nowrap}
+.btn-add:hover{background:#388bfd}
+.dcard{background:var(--surf);border:1px solid var(--border2);border-radius:var(--radius);overflow:hidden;cursor:pointer;transition:border-color .15s,transform .15s}
+.dcard:hover{border-color:var(--brand);transform:translateY(-1px)}
+.dcard.is-active{border-color:var(--safe)}
+.dcard-active-bar{background:rgba(63,185,80,.12);color:var(--safe);font-size:10px;font-weight:700;letter-spacing:.6px;padding:4px 10px;border-bottom:1px solid rgba(63,185,80,.2)}
+.dcard-body{padding:12px;display:flex;gap:10px}
+.dcard-av{width:52px;height:52px;border-radius:8px;flex-shrink:0}
+.dcard-name{font-weight:700;font-size:14px}
+.dcard-meta{font-size:11px;color:var(--muted);margin-top:2px}
+.dcard-stats{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--border2)}
+.dcard-stat{padding:8px 4px;text-align:center}
+.dcard-stat:not(:last-child){border-right:1px solid var(--border2)}
+.dcard-sn{font-size:16px;font-weight:800;font-family:var(--font-mono)}
+.dcard-sl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+
+/* ─── Modals ─────────────────────────────────────────────────── */
+.modal-backdrop-custom{position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);z-index:500;display:none;align-items:center;justify-content:center}
+.modal-backdrop-custom.open{display:flex}
+.modal-box{background:var(--surf);border:1px solid var(--border);border-radius:12px;width:100%;max-width:600px;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;margin:20px}
+.modal-hd{padding:14px 18px;border-bottom:1px solid var(--border2);display:flex;align-items:center;gap:8px}
+.modal-hd h3{font-size:15px;font-weight:700;flex:1}
+.modal-close{background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;padding:0;line-height:1}
+.modal-close:hover{color:var(--text)}
+.modal-bd{padding:18px;overflow-y:auto;flex:1}
+.modal-ft{padding:12px 18px;border-top:1px solid var(--border2);display:flex;gap:8px;justify-content:flex-end}
+
+/* ─── Form elements ──────────────────────────────────────────── */
+.form-group{margin-bottom:14px}
+.form-group:last-child{margin-bottom:0}
+.form-label{display:block;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+.form-input{width:100%;background:var(--surf2);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:13px;outline:none}
+.form-input:focus{border-color:var(--brand)}
+.btn-primary{background:var(--brand2);border:none;color:#fff;font-size:13px;font-weight:600;padding:7px 16px;border-radius:6px;cursor:pointer}
+.btn-primary:hover{background:#388bfd}
+.btn-secondary{background:var(--surf2);border:1px solid var(--border);color:var(--text);font-size:13px;font-weight:500;padding:7px 14px;border-radius:6px;cursor:pointer}
+.btn-secondary:hover{border-color:var(--brand);color:var(--brand)}
+.btn-danger{background:rgba(248,81,73,.15);border:1px solid rgba(248,81,73,.3);color:var(--danger);font-size:13px;padding:7px 14px;border-radius:6px;cursor:pointer}
+.btn-danger:hover{background:rgba(248,81,73,.25)}
+.btn-cam{padding:7px 14px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;border:none;display:flex;align-items:center;gap:5px}
+.btn-start{background:var(--safe);color:#0d1117}
+.btn-start:hover{background:#46c957}
+.btn-stop{background:var(--surf2);border:1px solid var(--border);color:var(--text)}
+.btn-stop:hover:not(:disabled){border-color:var(--danger);color:var(--danger)}
+.btn-stop:disabled,.btn-start:disabled{opacity:.4;cursor:not-allowed}
+
+/* ─── Photo upload ───────────────────────────────────────────── */
+.photo-upload-row{display:flex;gap:14px;align-items:center;margin-bottom:14px}
+.photo-thumb{width:72px;height:72px;border-radius:8px;border:1px dashed var(--border);background:var(--surf2);display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--muted);cursor:pointer;overflow:hidden;flex-shrink:0}
+.photo-thumb img{width:100%;height:100%;object-fit:cover}
+.photo-upload-hint{font-size:11px;color:var(--muted);margin-top:4px}
+
+/* ─── Empty / loading states ─────────────────────────────────── */
+.empty{text-align:center;padding:40px 20px;color:var(--muted)}
+.empty i{font-size:36px;display:block;margin-bottom:10px;opacity:.4}
+.empty p{font-size:13px}
+
+/* ─── Responsive ─────────────────────────────────────────────── */
+@media(max-width:768px){
+  .page{padding:12px}
+  .nav-pill span{display:none}
+  #topbar{padding:0 12px}
+  .brand{margin-right:8px}
+  .tl-wrap{height:auto;max-height:60vh}
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════ TOPBAR ══════════════════════════════════════════════════ -->
+<div id="topbar">
+  <div class="brand">
+    <div class="brand-dot" id="globalDot"></div>
+    DrowseGuard
+  </div>
+  <div class="nav-pill active" id="tab1" onclick="switchPage(1)">
+    <i class="bi bi-camera-video-fill"></i><span>Detection</span>
+  </div>
+  <div class="nav-pill" id="tab2" onclick="switchPage(2)">
+    <i class="bi bi-journal-text"></i><span>Live Log</span>
+  </div>
+  <div class="nav-pill" id="tab3" onclick="switchPage(3)">
+    <i class="bi bi-people-fill"></i><span>Drivers</span>
+  </div>
+  <div class="session-chip">
+    <div class="pulse" id="statusDot"></div>
+    <span id="statusTxt">Offline</span>
+  </div>
+</div>
+
+<!-- ══════════════ PAGE 1 — DETECTION ════════════════════════════════════ -->
+<div class="page active" id="page1">
+  <div class="row g-3">
+
+    <!-- LEFT: camera + quick report -->
+    <div class="col-lg-8">
+
+      <!-- Active driver strip -->
+      <div class="driver-strip">
+        <div class="avatar" id="stripAvatar" style="width:36px;height:36px;font-size:13px">?</div>
+        <div>
+          <div class="driver-name" id="stripName">No driver selected</div>
+          <div class="driver-sub" id="stripSub">Go to Drivers tab to select</div>
+        </div>
+        <button class="strip-btn" onclick="switchPage(3)">Change driver →</button>
+      </div>
+
+      <!-- Camera -->
+      <div class="card mb-3">
+        <div class="card-hd"><i class="bi bi-camera-video"></i> Live Feed</div>
+        <div class="card-bd">
+          <div class="cam-wrap mb-2" id="camWrap">
+            <video id="video" autoplay muted playsinline style="display:none"></video>
+            <div class="cam-placeholder" id="camPlaceholder">
+              <i class="bi bi-camera-video-off"></i>
+              Camera is off — press Start to begin
+            </div>
+            <div id="alertBanner"></div>
+          </div>
+          <div class="d-flex gap-2">
+            <button class="btn-cam btn-start" id="btnStart" onclick="startCamera()">
+              <i class="bi bi-play-fill"></i> Start
+            </button>
+            <button class="btn-cam btn-stop" id="btnStop" onclick="stopCamera()" disabled>
+              <i class="bi bi-stop-fill"></i> Stop
+            </button>
+            <button class="btn-cam btn-stop ms-auto" onclick="clearStats()" title="Reset session counters">
+              <i class="bi bi-arrow-counterclockwise"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick report -->
+      <div class="card">
+        <div class="card-hd"><i class="bi bi-clipboard2-pulse"></i> Quick Report</div>
+        <div class="card-bd">
+          <div class="row g-3 text-center">
+            <div class="col-4">
+              <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Status</div>
+              <div id="qStatus" style="font-size:22px;font-weight:800;font-family:var(--font-mono);color:var(--safe)">—</div>
+            </div>
+            <div class="col-4">
+              <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">EAR</div>
+              <div id="qEAR" style="font-size:22px;font-weight:800;font-family:var(--font-mono);color:var(--text)">—</div>
+            </div>
+            <div class="col-4">
+              <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Pitch</div>
+              <div id="qPitch" style="font-size:22px;font-weight:800;font-family:var(--font-mono);color:var(--text)">—</div>
+            </div>
+          </div>
+          <div id="qMsg" style="margin-top:12px;font-size:12px;color:var(--muted);text-align:center;padding:8px;background:var(--surf2);border-radius:6px">
+            Start monitoring to see live readings.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: metrics + signals + stats + log -->
+    <div class="col-lg-4 d-flex flex-column gap-3">
+
+      <!-- Metrics -->
+      <div class="card">
+        <div class="card-hd"><i class="bi bi-activity"></i> Metrics</div>
+        <div class="card-bd">
+          <div class="metric">
+            <div class="metric-row">
+              <span class="metric-lbl">EAR (eye ratio)</span>
+              <span class="metric-val" id="vEAR">—</span>
+            </div>
+            <div class="bar"><div class="bar-fill" id="bEAR" style="width:0%"></div></div>
+          </div>
+          <div class="metric">
+            <div class="metric-row">
+              <span class="metric-lbl">MAR (mouth ratio)</span>
+              <span class="metric-val" id="vMAR">—</span>
+            </div>
+            <div class="bar"><div class="bar-fill" id="bMAR" style="width:0%"></div></div>
+          </div>
+          <div class="metric">
+            <div class="metric-row">
+              <span class="metric-lbl">Pitch (head tilt°)</span>
+              <span class="metric-val" id="vPitch">—</span>
+            </div>
+            <div class="bar"><div class="bar-fill" id="bPitch" style="width:0%"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Signals -->
+      <div class="card">
+        <div class="card-hd"><i class="bi bi-broadcast"></i> Signals</div>
+        <div class="card-bd">
+          <div class="sig" id="rEyes">
+            <div style="display:flex;align-items:center">
+              <div class="sig-led" id="lEyes"></div>
+              <span class="sig-label">Eyes closing</span>
+            </div>
+            <span class="sig-badge" id="sEyes">OK</span>
+          </div>
+          <div class="sig" id="rMouth">
+            <div style="display:flex;align-items:center">
+              <div class="sig-led" id="lMouth"></div>
+              <span class="sig-label">Yawning</span>
+            </div>
+            <span class="sig-badge" id="sMouth">OK</span>
+          </div>
+          <div class="sig" id="rHead">
+            <div style="display:flex;align-items:center">
+              <div class="sig-led" id="lHead"></div>
+              <span class="sig-label">Head nodding</span>
+            </div>
+            <span class="sig-badge" id="sHead">OK</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Session stats -->
+      <div class="card">
+        <div class="card-hd"><i class="bi bi-bar-chart-line"></i> Session Stats</div>
+        <div class="card-bd">
+          <div class="stat-grid">
+            <div class="stat-tile">
+              <div class="stat-n" id="sTotal">0</div>
+              <div class="stat-l">Total</div>
+            </div>
+            <div class="stat-tile">
+              <div class="stat-n" id="sWarn" style="color:var(--warn)">0</div>
+              <div class="stat-l">Warnings</div>
+            </div>
+            <div class="stat-tile">
+              <div class="stat-n" id="sDanger" style="color:var(--danger)">0</div>
+              <div class="stat-l">Dangers</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Event log -->
+      <div class="card" style="flex:1">
+        <div class="card-hd"><i class="bi bi-terminal"></i> Event Log</div>
+        <div class="feed" id="feedLog">
+          <div class="feed-line info">Waiting for camera...</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ PAGE 2 — LIVE LOG ════════════════════════════════════ -->
+<div class="page" id="page2">
+  <div class="row g-3">
+
+    <!-- LEFT: current driver profile + session info -->
+    <div class="col-lg-4">
+
+      <div class="card mb-3">
+        <div class="card-hd"><i class="bi bi-person-badge-fill"></i> Current Driver</div>
+        <div class="card-bd" id="p2DriverPanel">
+          <div class="empty">
+            <i class="bi bi-person-slash"></i>
+            <p>No active session.<br>Start detection on Page 1.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-hd"><i class="bi bi-stopwatch"></i> Session Details</div>
+        <div class="card-bd" id="p2SessionPanel">
+          <div class="empty" style="padding:16px">
+            <i class="bi bi-clock-history"></i>
+            <p>No active session</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT: live alert timeline -->
+    <div class="col-lg-8">
+      <div class="card" style="height:calc(100vh - 100px)">
+        <div class="card-hd">
+          <i class="bi bi-bell-fill"></i> Alert Timeline
+          <span id="p2Count" style="font-size:10px;background:var(--surf2);border:1px solid var(--border2);border-radius:10px;padding:1px 7px;margin-left:4px">0</span>
+          <button onclick="refreshPage2()" style="margin-left:auto;background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px" title="Refresh">
+            <i class="bi bi-arrow-clockwise"></i>
+          </button>
+        </div>
+        <div class="tl-wrap" id="p2Timeline">
+          <div class="empty" style="padding:40px">
+            <i class="bi bi-clock"></i>
+            <p>Alerts will appear here in real time</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════ PAGE 3 — DRIVERS ══════════════════════════════════════ -->
+<div class="page" id="page3">
+
+  <div class="p3-top">
+    <h2>Drivers</h2>
+    <span class="p3-count" id="p3Count">0</span>
+    <input type="search" class="search-box" placeholder="Search…" id="searchBox" oninput="renderDrivers()">
+    <button class="btn-add" onclick="openAddModal()">
+      <i class="bi bi-plus-lg"></i> Add Driver
+    </button>
+  </div>
+
+  <div class="row g-3" id="driversGrid">
+    <div class="col-12">
+      <div class="empty"><i class="bi bi-people"></i><p>No drivers yet. Add your first driver.</p></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════════ MODAL: Driver Form (Add/Edit) ══════════════════════════ -->
+<div class="modal-backdrop-custom" id="modalForm">
+  <div class="modal-box">
+    <div class="modal-hd">
+      <h3 id="formTitle">Add Driver</h3>
+      <button class="modal-close" onclick="closeModal('modalForm')">×</button>
+    </div>
+    <div class="modal-bd">
+      <div class="photo-upload-row">
+        <div class="photo-thumb" id="photoThumb" onclick="document.getElementById('photoFile').click()">
+          <i class="bi bi-camera"></i>
+        </div>
+        <div>
+          <div style="font-size:13px;font-weight:600">Driver photo</div>
+          <div class="photo-upload-hint">Click to upload · JPG or PNG · max 5 MB</div>
+          <input type="file" id="photoFile" accept="image/*" style="display:none" onchange="onPhotoChange(this)">
+        </div>
+      </div>
+      <input type="hidden" id="fId">
+      <div class="form-group">
+        <label class="form-label">Full Name *</label>
+        <input type="text" class="form-input" id="fName" placeholder="e.g. Rahul Sharma">
+      </div>
+      <div class="form-group">
+        <label class="form-label">License Number</label>
+        <input type="text" class="form-input" id="fLicense" placeholder="e.g. KA-01-20240012345">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Vehicle</label>
+        <input type="text" class="form-input" id="fVehicle" placeholder="e.g. Toyota Innova · KA01AB1234">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Phone</label>
+        <input type="text" class="form-input" id="fPhone" placeholder="e.g. +91 98765 43210">
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn-secondary" onclick="closeModal('modalForm')">Cancel</button>
+      <button class="btn-primary" onclick="saveDriver()">Save Driver</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ MODAL: Driver Detail ══════════════════════════════════ -->
+<div class="modal-backdrop-custom" id="modalDetail">
+  <div class="modal-box">
+    <div class="modal-hd">
+      <h3 id="detailTitle">Driver Detail</h3>
+      <button class="modal-close" onclick="closeModal('modalDetail')">×</button>
+    </div>
+    <div class="modal-bd" id="detailBody">Loading…</div>
+    <div class="modal-ft">
+      <button class="btn-danger"    onclick="deleteDriver()">Delete</button>
+      <button class="btn-secondary" onclick="editDriver()">Edit</button>
+      <button class="btn-primary"   onclick="setActive()">
+        <i class="bi bi-play-fill"></i> Set as Active Driver
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+/* ══════════════════════════════════════════════════════════════
+   State
+   ══════════════════════════════════════════════════════════════ */
+const API = 'http://localhost:8000';
+
+let camStream   = null;
+let camTimer    = null;
+let p2Timer     = null;
+let counts      = [0, 0, 0];      // [total, warn, danger]
+let activeDriver= null;            // full driver object
+let allDrivers  = [];              // cached from /drivers
+let detailId    = null;            // driver currently open in detail modal
+
+/* ══════════════════════════════════════════════════════════════
+   Page switching
+   ══════════════════════════════════════════════════════════════ */
+function switchPage(n) {
+  [1,2,3].forEach(i => {
+    document.getElementById(`page${i}`).classList.toggle('active', i === n);
+    document.getElementById(`tab${i}`) .classList.toggle('active', i === n);
+  });
+  if (n === 2) { refreshPage2(); startP2Polling(); }
+  else           stopP2Polling();
+  if (n === 3)   loadDrivers();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Camera (Page 1)
+   ══════════════════════════════════════════════════════════════ */
+async function startCamera() {
+  if (!activeDriver) {
+    alert('Select a driver first — go to the Drivers tab.');
+    return;
+  }
+  try {
+    camStream = await navigator.mediaDevices.getUserMedia({ video: true });
+    const v   = document.getElementById('video');
+    v.srcObject = camStream;
+    v.style.display = 'block';
+    document.getElementById('camPlaceholder').style.display = 'none';
+    document.getElementById('btnStart').disabled = true;
+    document.getElementById('btnStop').disabled  = false;
+    setStatus(true);
+
+    // Open a server-side session
+    await fetch(`${API}/sessions/start`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ driver_id: activeDriver._id }),
+    });
+
+    camTimer = setInterval(sendFrame, 500);
+    feedLog('info', 'Session started');
+  } catch(e) {
+    feedLog('danger', 'Camera error: ' + e.message);
+  }
+}
+
+function stopCamera() {
+  camStream?.getTracks().forEach(t => t.stop());
+  camStream = null;
+  const v = document.getElementById('video');
+  v.srcObject = null;
+  v.style.display = 'none';
+  document.getElementById('camPlaceholder').style.display = '';
+  document.getElementById('btnStart').disabled = false;
+  document.getElementById('btnStop').disabled  = true;
+  clearInterval(camTimer);
+  setStatus(false);
+  clearBanner();
+  resetMetrics();
+  fetch(`${API}/sessions/end`, { method:'POST' });
+  feedLog('info', 'Session ended');
+}
+
+async function sendFrame() {
+  const v = document.getElementById('video');
+  if (!v.srcObject || v.readyState < 2) return;
+  const c = document.createElement('canvas');
+  c.width = v.videoWidth; c.height = v.videoHeight;
+  const ctx = c.getContext('2d');
+  ctx.translate(c.width, 0); ctx.scale(-1, 1);
+  ctx.drawImage(v, 0, 0);
+  try {
+    const r = await fetch(`${API}/analyse`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ image: c.toDataURL('image/jpeg', 0.72) }),
+    });
+    if (r.ok) updateUI(await r.json());
+  } catch {
+    feedLog('danger', 'Server unreachable');
+    clearInterval(camTimer);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   UI update from analysis result
+   ══════════════════════════════════════════════════════════════ */
+function updateUI(d) {
+  showBanner(d.alert_level, d.message);
+  if (!d.face_found) { resetMetrics(); return; }
+
+  // Metrics
+  updMetric('EAR',   d.ear.toFixed(3), d.ear / 0.4,            d.eyes_closed);
+  updMetric('MAR',   d.mar.toFixed(3), d.mar / 1.2,            d.yawning);
+  updMetric('Pitch', d.pitch.toFixed(1)+'°', Math.abs(d.pitch)/40, d.head_nodding);
+
+  // Signals
+  updSignal('Eyes',  d.eyes_closed,  d.alert_level);
+  updSignal('Mouth', d.yawning,      d.alert_level);
+  updSignal('Head',  d.head_nodding, d.alert_level);
+
+  // Quick report
+  const lvlColor = d.alert_level === 'danger' ? 'var(--danger)'
+                 : d.alert_level === 'warning' ? 'var(--warn)'
+                 : 'var(--safe)';
+  const lvlText  = d.alert_level === 'danger' ? 'DANGER'
+                 : d.alert_level === 'warning' ? 'WARN' : 'OK';
+  document.getElementById('qStatus').textContent  = lvlText;
+  document.getElementById('qStatus').style.color  = lvlColor;
+  document.getElementById('qEAR').textContent     = d.ear.toFixed(3);
+  document.getElementById('qPitch').textContent   = d.pitch.toFixed(1)+'°';
+  document.getElementById('qMsg').textContent     = d.message;
+
+  // Topbar dot
+  document.getElementById('globalDot').className =
+    'brand-dot' + (d.alert_level === 'danger' ? ' danger' : d.alert_level === 'warning' ? ' warn' : '');
+
+  // Counts
+  if (d.alert_level !== 'safe') {
+    counts[0]++;
+    d.alert_level === 'warning' ? counts[1]++ : counts[2]++;
+    document.getElementById('sTotal') .textContent = counts[0];
+    document.getElementById('sWarn')  .textContent = counts[1];
+    document.getElementById('sDanger').textContent = counts[2];
+    feedLog(d.alert_level, d.message);
+  }
+}
+
+function updMetric(key, label, ratio, alert) {
+  document.getElementById('v'+key).textContent = label;
+  const bar = document.getElementById('b'+key);
+  bar.style.width      = Math.min(ratio*100, 100) + '%';
+  bar.style.background = alert ? 'var(--danger)' : 'var(--safe)';
+}
+
+function updSignal(key, active, level) {
+  const cls = (active && level !== 'safe') ? 'is-' + level : '';
+  document.getElementById('r'+key).className = 'sig' + (cls ? ' '+cls : '');
+  document.getElementById('l'+key).className = 'sig-led' + (cls ? ' '+cls : '');
+  const badge = document.getElementById('s'+key);
+  badge.className = 'sig-badge' + (cls ? ' '+cls : '');
+  badge.textContent = cls ? level.toUpperCase() : 'OK';
+}
+
+function showBanner(level, msg) {
+  const b = document.getElementById('alertBanner');
+  if (!level || level === 'safe') { b.style.display = 'none'; return; }
+  b.style.display    = 'block';
+  b.style.background = level === 'danger' ? 'rgba(248,81,73,.88)' : 'rgba(210,153,34,.88)';
+  b.style.color      = level === 'danger' ? '#fff' : '#000';
+  b.textContent = msg;
+}
+function clearBanner() { showBanner('safe',''); }
+
+function setStatus(on) {
+  document.getElementById('statusDot').className = 'pulse' + (on ? ' on' : '');
+  document.getElementById('statusTxt').textContent = on ? 'Monitoring' : 'Offline';
+}
+
+function feedLog(type, msg) {
+  const feed = document.getElementById('feedLog');
+  const el   = document.createElement('div');
+  el.className   = 'feed-line ' + type;
+  el.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+  feed.prepend(el);
+  if (feed.children.length > 80) feed.removeChild(feed.lastChild);
+}
+
+function resetMetrics() {
+  ['EAR','MAR','Pitch'].forEach(k => {
+    document.getElementById('v'+k).textContent    = '—';
+    document.getElementById('b'+k).style.width    = '0%';
+    document.getElementById('b'+k).style.background = 'var(--safe)';
+  });
+  ['Eyes','Mouth','Head'].forEach(k => updSignal(k, false, 'safe'));
+}
+
+function clearStats() {
+  counts = [0,0,0];
+  ['sTotal','sWarn','sDanger'].forEach(id => document.getElementById(id).textContent = '0');
+  document.getElementById('feedLog').innerHTML = '<div class="feed-line info">Cleared.</div>';
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Driver strip (Page 1)
+   ══════════════════════════════════════════════════════════════ */
+function setActiveDriver(d) {
+  activeDriver = d;
+  const initials = d.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+  const av = document.getElementById('stripAvatar');
+  if (d.photo) {
+    av.innerHTML = `<img src="${d.photo}" style="width:36px;height:36px;object-fit:cover">`;
+  } else {
+    av.textContent = initials;
+  }
+  document.getElementById('stripName').textContent = d.name;
+  document.getElementById('stripSub').textContent  =
+    [d.vehicle, d.license_number].filter(Boolean).join(' · ') || 'No vehicle info';
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Page 2 — Live Log
+   ══════════════════════════════════════════════════════════════ */
+function startP2Polling() { p2Timer = setInterval(refreshPage2, 5000); }
+function stopP2Polling()  { clearInterval(p2Timer); }
+
+async function refreshPage2() {
+  try {
+    const [sessRes, alertRes] = await Promise.all([
+      fetch(`${API}/sessions/active`),
+      fetch(`${API}/alerts/live`),
+    ]);
+    const sess  = await sessRes.json();
+    const alerts= await alertRes.json();
+    renderP2Driver(sess);
+    renderP2Timeline(alerts);
+  } catch(e) {
+    document.getElementById('p2Timeline').innerHTML =
+      '<div class="empty"><i class="bi bi-wifi-off"></i><p>Cannot reach server</p></div>';
+  }
+}
+
+function renderP2Driver(data) {
+  const dPanel = document.getElementById('p2DriverPanel');
+  const sPanel = document.getElementById('p2SessionPanel');
+
+  if (!data.active || !data.driver) {
+    dPanel.innerHTML = '<div class="empty" style="padding:16px"><i class="bi bi-person-slash"></i><p>No active session</p></div>';
+    sPanel.innerHTML = '<div class="empty" style="padding:16px"><i class="bi bi-clock-history"></i><p>No active session</p></div>';
+    return;
+  }
+  const dr = data.driver;
+  const s  = data.session;
+  const initials = dr.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+  const avatarHtml = dr.photo
+    ? `<img class="avatar-xl" src="${dr.photo}" style="border-radius:10px;object-fit:cover">`
+    : `<div class="avatar-xl" style="background:var(--brand2);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#fff">${initials}</div>`;
+
+  dPanel.innerHTML = `
+    <div class="driver-profile-card">
+      ${avatarHtml}
+      <dl class="info-dl">
+        <dt>Name</dt><dd>${dr.name}</dd>
+        <dt>License</dt><dd>${dr.license_number||'—'}</dd>
+        <dt>Vehicle</dt><dd>${dr.vehicle||'—'}</dd>
+        <dt>Phone</dt><dd>${dr.phone||'—'}</dd>
+      </dl>
+    </div>
+    <div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap">
+      <span class="badge-warn"><i class="bi bi-exclamation-triangle"></i> ${dr.total_warnings} warnings</span>
+      <span class="badge-danger"><i class="bi bi-x-octagon"></i> ${dr.total_dangers} dangers</span>
+      <span class="badge-brand"><i class="bi bi-car-front"></i> ${dr.total_sessions} sessions</span>
+    </div>`;
+
+  const started = new Date(s.started_at);
+  const elapsed = Math.floor((Date.now() - started.getTime()) / 60000);
+  sPanel.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div style="display:flex;justify-content:space-between">
+        <span style="font-size:11px;color:var(--muted)">Started</span>
+        <span style="font-size:12px;font-family:var(--font-mono)">${started.toLocaleTimeString()}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between">
+        <span style="font-size:11px;color:var(--muted)">Elapsed</span>
+        <span style="font-size:12px;font-family:var(--font-mono)">${elapsed} min</span>
+      </div>
+      <div style="display:flex;justify-content:space-between">
+        <span style="font-size:11px;color:var(--muted)">Warnings</span>
+        <span style="font-size:12px;color:var(--warn);font-family:var(--font-mono)">${s.warnings}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between">
+        <span style="font-size:11px;color:var(--muted)">Dangers</span>
+        <span style="font-size:12px;color:var(--danger);font-family:var(--font-mono)">${s.dangers}</span>
+      </div>
+    </div>`;
+}
+
+function renderP2Timeline(alerts) {
+  document.getElementById('p2Count').textContent = alerts.length;
+  const wrap = document.getElementById('p2Timeline');
+  if (!alerts.length) {
+    wrap.innerHTML = '<div class="empty" style="padding:40px"><i class="bi bi-clock"></i><p>No alerts this session yet</p></div>';
+    return;
+  }
+  wrap.innerHTML = `<div class="tl" style="padding:16px">` +
+    alerts.map(a => {
+      const ts    = new Date(a.timestamp).toLocaleTimeString();
+      const flags = [a.eyes_closed&&'Eyes',a.yawning&&'Yawn',a.head_nodding&&'Nod'].filter(Boolean).join(' · ');
+      return `
+        <div class="tl-item">
+          <div class="tl-dot ${a.alert_level}"></div>
+          <div class="tl-ts">${ts}</div>
+          <div class="tl-msg">${a.message}</div>
+          <div class="tl-meta">EAR ${a.ear} · MAR ${a.mar} · Pitch ${a.pitch}°${flags?' · '+flags:''}</div>
+        </div>`;
+    }).join('') +
+  `</div>`;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Page 3 — Drivers
+   ══════════════════════════════════════════════════════════════ */
+async function loadDrivers() {
+  try {
+    const res = await fetch(`${API}/drivers`);
+    allDrivers = await res.json();
+  } catch { allDrivers = []; }
+  document.getElementById('p3Count').textContent = allDrivers.length;
+  renderDrivers();
+}
+
+function renderDrivers() {
+  const q    = document.getElementById('searchBox').value.toLowerCase();
+  const list = q
+    ? allDrivers.filter(d =>
+        d.name.toLowerCase().includes(q) ||
+        (d.license_number||'').toLowerCase().includes(q) ||
+        (d.vehicle||'').toLowerCase().includes(q)
+      )
+    : allDrivers;
+  const grid = document.getElementById('driversGrid');
+  if (!list.length) {
+    grid.innerHTML = '<div class="col-12"><div class="empty"><i class="bi bi-people"></i><p>No drivers found.</p></div></div>';
+    return;
+  }
+  grid.innerHTML = list.map(d => {
+    const initials = d.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    const isActive = activeDriver && activeDriver._id === d._id;
+    const avatarHtml = d.photo
+      ? `<img class="dcard-av" src="${d.photo}" style="border-radius:8px;object-fit:cover">`
+      : `<div class="dcard-av" style="background:var(--brand2);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#fff">${initials}</div>`;
+    return `
+      <div class="col-sm-6 col-lg-4 col-xl-3">
+        <div class="dcard${isActive?' is-active':''}" onclick="openDetail('${d._id}')">
+          ${isActive?`<div class="dcard-active-bar"><i class="bi bi-circle-fill" style="font-size:8px"></i> ACTIVE DRIVER</div>`:''}
+          <div class="dcard-body">
+            ${avatarHtml}
+            <div>
+              <div class="dcard-name">${d.name}</div>
+              <div class="dcard-meta"><i class="bi bi-car-front" style="font-size:10px"></i> ${d.vehicle||'No vehicle'}</div>
+              <div class="dcard-meta"><i class="bi bi-credit-card" style="font-size:10px"></i> ${d.license_number||'No license'}</div>
+            </div>
+          </div>
+          <div class="dcard-stats">
+            <div class="dcard-stat">
+              <div class="dcard-sn">${d.total_sessions}</div>
+              <div class="dcard-sl">Sessions</div>
+            </div>
+            <div class="dcard-stat">
+              <div class="dcard-sn" style="color:var(--warn)">${d.total_warnings}</div>
+              <div class="dcard-sl">Warnings</div>
+            </div>
+            <div class="dcard-stat">
+              <div class="dcard-sn" style="color:var(--danger)">${d.total_dangers}</div>
+              <div class="dcard-sl">Dangers</div>
+            </div>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+/* ──────────────────────────── Driver detail modal ────────────────── */
+async function openDetail(id) {
+  detailId = id;
+  openModal('modalDetail');
+  const d = allDrivers.find(x => x._id === id);
+  if (!d) return;
+  document.getElementById('detailTitle').textContent = d.name;
+
+  // Fetch sessions
+  const sesRes = await fetch(`${API}/sessions/driver/${id}`).catch(()=>null);
+  const sessions = sesRes ? await sesRes.json() : [];
+
+  const initials = d.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+  const avatarHtml = d.photo
+    ? `<img src="${d.photo}" style="width:80px;height:80px;border-radius:10px;object-fit:cover;flex-shrink:0">`
+    : `<div style="width:80px;height:80px;border-radius:10px;background:var(--brand2);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;color:#fff;flex-shrink:0">${initials}</div>`;
+
+  const sessHtml = !sessions.length
+    ? `<div class="empty" style="padding:24px"><i class="bi bi-clock-history"></i><p>No driving sessions recorded yet</p></div>`
+    : sessions.map(s => {
+        const started = new Date(s.started_at).toLocaleString();
+        const ended   = s.ended_at ? new Date(s.ended_at).toLocaleTimeString() : 'ongoing';
+        const evs = (s.events||[]).slice(0,6).map(a => `
+          <div class="tl-item">
+            <div class="tl-dot ${a.alert_level}"></div>
+            <div class="tl-ts">${new Date(a.timestamp).toLocaleTimeString()}</div>
+            <div class="tl-msg" style="font-size:12px">${a.message}</div>
+          </div>`).join('');
+        return `
+          <div style="background:var(--surf2);border:1px solid var(--border2);border-radius:6px;padding:10px;margin-bottom:8px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+              <div>
+                <div style="font-size:12px;font-weight:600">${started}</div>
+                <div style="font-size:10px;color:var(--muted)">ended ${ended}</div>
+              </div>
+              <div style="display:flex;gap:4px">
+                <span class="badge-warn">${s.warnings}W</span>
+                <span class="badge-danger">${s.dangers}D</span>
+              </div>
+            </div>
+            ${evs ? `<div class="tl" style="padding-left:16px">${evs}</div>` : '<div style="font-size:11px;color:var(--muted)">No alerts this session</div>'}
+          </div>`;
+      }).join('');
+
+  document.getElementById('detailBody').innerHTML = `
+    <div style="display:flex;gap:14px;align-items:flex-start;margin-bottom:16px">
+      ${avatarHtml}
+      <div>
+        <div style="font-size:18px;font-weight:800;margin-bottom:4px">${d.name}</div>
+        <div style="font-size:12px;color:var(--muted)"><i class="bi bi-credit-card"></i> ${d.license_number||'—'}</div>
+        <div style="font-size:12px;color:var(--muted)"><i class="bi bi-car-front"></i> ${d.vehicle||'—'}</div>
+        <div style="font-size:12px;color:var(--muted)"><i class="bi bi-telephone"></i> ${d.phone||'—'}</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:16px">
+      <div style="flex:1;background:rgba(88,166,255,.08);border:1px solid rgba(88,166,255,.2);border-radius:6px;padding:10px;text-align:center">
+        <div style="font-size:22px;font-weight:800;color:var(--brand)">${d.total_sessions}</div>
+        <div style="font-size:10px;color:var(--muted)">SESSIONS</div>
+      </div>
+      <div style="flex:1;background:rgba(210,153,34,.08);border:1px solid rgba(210,153,34,.2);border-radius:6px;padding:10px;text-align:center">
+        <div style="font-size:22px;font-weight:800;color:var(--warn)">${d.total_warnings}</div>
+        <div style="font-size:10px;color:var(--muted)">WARNINGS</div>
+      </div>
+      <div style="flex:1;background:rgba(248,81,73,.08);border:1px solid rgba(248,81,73,.2);border-radius:6px;padding:10px;text-align:center">
+        <div style="font-size:22px;font-weight:800;color:var(--danger)">${d.total_dangers}</div>
+        <div style="font-size:10px;color:var(--muted)">DANGERS</div>
+      </div>
+    </div>
+    <div style="font-size:11px;font-weight:600;letter-spacing:.6px;color:var(--muted);text-transform:uppercase;margin-bottom:8px">Driving History</div>
+    ${sessHtml}`;
+}
+
+function setActive() {
+  const d = allDrivers.find(x => x._id === detailId);
+  if (!d) return;
+  setActiveDriver(d);
+  closeModal('modalDetail');
+  switchPage(1);
+}
+
+function editDriver() {
+  closeModal('modalDetail');
+  const d = allDrivers.find(x => x._id === detailId);
+  if (!d) return;
+  openEditModal(d);
+}
+
+async function deleteDriver() {
+  const d = allDrivers.find(x => x._id === detailId);
+  if (!d || !confirm(`Delete "${d.name}" and all their session data?`)) return;
+  await fetch(`${API}/drivers/${detailId}`, { method:'DELETE' });
+  if (activeDriver?._id === detailId) {
+    activeDriver = null;
+    document.getElementById('stripAvatar').textContent = '?';
+    document.getElementById('stripName').textContent   = 'No driver selected';
+    document.getElementById('stripSub').textContent    = 'Go to Drivers tab to select';
+  }
+  closeModal('modalDetail');
+  loadDrivers();
+}
+
+/* ──────────────────────────── Add / Edit form ─────────────────────── */
+function openAddModal() {
+  document.getElementById('formTitle').textContent = 'Add Driver';
+  document.getElementById('fId')     .value = '';
+  document.getElementById('fName')   .value = '';
+  document.getElementById('fLicense').value = '';
+  document.getElementById('fVehicle').value = '';
+  document.getElementById('fPhone')  .value = '';
+  document.getElementById('photoFile').value = '';
+  document.getElementById('photoThumb').innerHTML = '<i class="bi bi-camera"></i>';
+  openModal('modalForm');
+}
+
+function openEditModal(d) {
+  document.getElementById('formTitle').textContent = 'Edit Driver';
+  document.getElementById('fId')     .value = d._id;
+  document.getElementById('fName')   .value = d.name;
+  document.getElementById('fLicense').value = d.license_number||'';
+  document.getElementById('fVehicle').value = d.vehicle||'';
+  document.getElementById('fPhone')  .value = d.phone||'';
+  document.getElementById('photoFile').value = '';
+  const th = document.getElementById('photoThumb');
+  th.innerHTML = d.photo ? `<img src="${d.photo}" style="width:72px;height:72px;object-fit:cover;border-radius:7px">` : '<i class="bi bi-camera"></i>';
+  openModal('modalForm');
+}
+
+function onPhotoChange(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const r = new FileReader();
+  r.onload = e => {
+    document.getElementById('photoThumb').innerHTML =
+      `<img src="${e.target.result}" style="width:72px;height:72px;object-fit:cover;border-radius:7px">`;
+  };
+  r.readAsDataURL(file);
+}
+
+async function saveDriver() {
+  const id   = document.getElementById('fId').value;
+  const name = document.getElementById('fName').value.trim();
+  if (!name) { alert('Name is required.'); return; }
+
+  const fd = new FormData();
+  fd.append('name',           name);
+  fd.append('license_number', document.getElementById('fLicense').value);
+  fd.append('vehicle',        document.getElementById('fVehicle').value);
+  fd.append('phone',          document.getElementById('fPhone').value);
+  const photoFile = document.getElementById('photoFile').files[0];
+  if (photoFile) fd.append('photo', photoFile);
+
+  const res = await fetch(
+    id ? `${API}/drivers/${id}` : `${API}/drivers`,
+    { method: id ? 'PUT' : 'POST', body: fd }
+  );
+  if (!res.ok) { alert('Save failed: ' + res.statusText); return; }
+  closeModal('modalForm');
+  loadDrivers();
+}
+
+/* ──────────────────────────── Modal helpers ─────────────────────── */
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+// close on backdrop click
+document.querySelectorAll('.modal-backdrop-custom').forEach(el =>
+  el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open'); })
+);
+
+/* ══════════════════════════════════════════════════════════════
+   Boot
+   ══════════════════════════════════════════════════════════════ */
+loadDrivers();
+</script>
+</body>
+</html>
