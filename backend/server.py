@@ -179,8 +179,11 @@ def _empty(face=False):
 
 # ── Static ────────────────────────────────────────────────────────────────────
 @app.get("/")
-def root():
-    return FileResponse("index.html")
+async def root():
+    return {
+        "status": "ok",
+        "service": "DrowseGuard API"
+    }
 
 # ═════════════════════════════════════════════════════════════════════════════
 # DRIVERS
