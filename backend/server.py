@@ -50,7 +50,12 @@ col_alerts   = db["alerts"]    # individual warning/danger events
 app = FastAPI(title="DrowseGuard API")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], allow_methods=["*"], allow_headers=["*"],
+    allow_origins=[
+        "https://drowse-guard-driver-drowsiness-detection-system-fstacdabj.vercel.app"
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # ── MediaPipe Face Landmarker (Tasks API) ─────────────────────────────────────
