@@ -36,8 +36,8 @@ logging.basicConfig(
 log = logging.getLogger("drowsiness")
 
 # ── MongoDB ───────────────────────────────────────────────────────────────────
-MONGO_URL = os.getenv("MONGO_URL", "mongodb://localhost:27017")
-_client   = AsyncIOMotorClient(MONGO_URL)
+MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
+_client   = AsyncIOMotorClient(MONGODB_URI)
 db        = _client["drowsiness_db"]
 
 col_drivers  = db["drivers"]   # driver profiles + photo (base-64)
