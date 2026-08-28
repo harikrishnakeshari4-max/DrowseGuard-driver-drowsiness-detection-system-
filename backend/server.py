@@ -14,6 +14,8 @@ import datetime
 import logging
 import math
 import os
+import urllib.request
+from pathlib import Path
 
 import cv2
 import mediapipe as mp
@@ -51,12 +53,39 @@ app.add_middleware(
     allow_origins=["*"], allow_methods=["*"], allow_headers=["*"],
 )
 
-# ── MediaPipe FaceMesh ────────────────────────────────────────────────────────
-_face_mesh = mp.solutions.face_mesh.FaceMesh(
-    max_num_faces=1,
-    min_detection_confidence=0.5,
+# ── MediaPipe Face Landmarker (Tasks API) ─────────────────────────────────────
+# Newer MediaPipe releases no longer expose the legacy mp.solutions API.
+# The Tasks API is used here so the backend works with current MediaPipe builds.
+MODEL_URL = (
+    "https://storage.googleapis.com/mediapipe-models/face_landmarker/"
+    "face_landmarker/float16/1/face_landmarker.task"
+)
+MODEL_PATH = Path("/tmp/face_landmarker.task")
+
+
+def _ensure_face_model():
+    if MODEL_PATH.exists() and MODEL_PATH.stat().st_size > 0:
+        return
+    log.info("Downloading MediaPipe face_landmarker.task ...")
+    urllib.request.urlretrieve(MODEL_URL, MODEL_PATH)
+    log.info("MediaPipe face landmarker model ready.")
+
+
+_ensure_face_model()
+
+from mediapipe.tasks import python as mp_python
+from mediapipe.tasks.python import vision as mp_vision
+
+_mp_base_options = mp_python.BaseOptions(model_asset_path=str(MODEL_PATH))
+_mp_options = mp_vision.FaceLandmarkerOptions(
+    base_options=_mp_base_options,
+    running_mode=mp_vision.RunningMode.IMAGE,
+    num_faces=1,
+    min_face_detection_confidence=0.5,
+    min_face_presence_confidence=0.5,
     min_tracking_confidence=0.5,
 )
+_face_landmarker = mp_vision.FaceLandmarker.create_from_options(_mp_options)
 
 LEFT_EYE  = [362, 385, 387, 263, 373, 380]
 RIGHT_EYE = [33,  160, 158, 133, 153, 144]
@@ -313,11 +342,16 @@ async def analyse(frame: Frame):
         return _empty()
 
     h, w = image.shape[:2]
-    result = _face_mesh.process(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
-    if not result.multi_face_landmarks:
+
+    # MediaPipe Tasks expects an RGB mp.Image.
+    rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
+    result = _face_landmarker.detect(mp_image)
+
+    if not result.face_landmarks:
         return _empty(face=False)
 
-    lm    = result.multi_face_landmarks[0].landmark
+    lm = result.face_landmarks[0]
     ear   = (_ear(lm, LEFT_EYE, w, h) + _ear(lm, RIGHT_EYE, w, h)) / 2
     mar   = _mar(lm, MOUTH, w, h)
     pitch = _pitch(lm, w, h)
@@ -380,7 +414,7 @@ async def startup():
     await col_alerts.create_index([("session_id", 1), ("timestamp", -1)])
     log.info("=" * 52)
     log.info("DrowseGuard server started")
-    log.info(f"MongoDB : {MONGO_URL}")
+    log.info(f"MongoDB : {MONGODB_URI}")
     log.info("UI      : http://localhost:8000")
     log.info("=" * 52)
 
