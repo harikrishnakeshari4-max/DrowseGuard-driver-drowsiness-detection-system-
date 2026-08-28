@@ -61,7 +61,7 @@ app = FastAPI(title="DrowseGuard API")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://drowse-guard-driver-drowsiness-detection-system-fstacdabj.vercel.app"
+        "https://drowse-guard-driver-drowsiness-dete.vercel.app"
     ],
     allow_credentials=True,
     allow_methods=["*"],
