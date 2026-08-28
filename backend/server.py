@@ -429,8 +429,7 @@ async def startup():
     await col_alerts.create_index([("session_id", 1), ("timestamp", -1)])
     log.info("=" * 52)
     log.info("DrowseGuard server started")
-    log.info(f"MongoDB : {MONGODB_URI}")
-    log.info("UI      : http://localhost:8000")
+    log.info("MongoDB : Atlas connection configured")
     log.info("=" * 52)
 
 @app.on_event("shutdown")
