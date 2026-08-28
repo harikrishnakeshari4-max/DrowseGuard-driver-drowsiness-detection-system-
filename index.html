@@ -527,7 +527,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 /* ══════════════════════════════════════════════════════════════
    State
    ══════════════════════════════════════════════════════════════ */
-const API = 'http://localhost:8000';
+const API = window.location.origin;
 
 let camStream   = null;
 let camTimer    = null;
