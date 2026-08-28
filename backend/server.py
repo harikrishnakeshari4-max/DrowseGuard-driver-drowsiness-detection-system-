@@ -38,9 +38,19 @@ logging.basicConfig(
 log = logging.getLogger("drowsiness")
 
 # ── MongoDB ───────────────────────────────────────────────────────────────────
-MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
-_client   = AsyncIOMotorClient(MONGODB_URI)
-db        = _client["drowsiness_db"]
+from dotenv import load_dotenv
+
+load_dotenv()
+
+MONGO_URL = os.getenv("MONGO_URL")
+
+if not MONGO_URL:
+    raise RuntimeError("MONGO_URL environment variable is not configured")
+
+MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "drowsiness_db")
+
+_client = AsyncIOMotorClient(MONGO_URL)
+db = _client[MONGO_DB_NAME]
 
 col_drivers  = db["drivers"]   # driver profiles + photo (base-64)
 col_sessions = db["sessions"]  # one doc per driving session
