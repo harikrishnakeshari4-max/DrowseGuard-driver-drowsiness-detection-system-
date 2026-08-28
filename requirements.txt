@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+motor
+pymongo
+python-dotenv
+opencv-python
+mediapipe
+numpy
+python-multipart
